@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0f172a">
+<title>監督者呼出し SMS 試作版</title>
+<style>
+:root{--navy:#0f172a;--blue:#2563eb;--light:#f1f5f9;--line:#cbd5e1;--text:#172033;--muted:#64748b;--danger:#dc2626;--ok:#15803d;--warn:#d97706}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#e8eef5;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif}
+button,input,textarea,select{font:inherit}
+button{touch-action:manipulation}
+.app{max-width:620px;min-height:100vh;margin:auto;background:#fff;box-shadow:0 0 30px #94a3b855}
+header{position:sticky;top:0;z-index:10;padding:calc(12px + env(safe-area-inset-top)) 16px 13px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:space-between}
+header h1{font-size:20px;margin:0;letter-spacing:.03em}.sub{font-size:12px;opacity:.78;margin-top:3px}.iconbtn{border:1px solid #ffffff55;background:#ffffff14;color:#fff;border-radius:12px;min-width:48px;min-height:48px;font-size:22px}
+main{padding:16px 14px calc(92px + env(safe-area-inset-bottom))}.panel{border:1px solid var(--line);border-radius:18px;padding:14px;background:#fff;margin-bottom:14px;box-shadow:0 4px 14px #0f172a0d}.panel h2{font-size:16px;margin:0 0 12px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px}.meta div{background:var(--light);border-radius:12px;padding:10px}.meta small{display:block;color:var(--muted);font-size:11px}.meta b{display:block;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}.template{min-height:92px;border:3px solid transparent;border-radius:16px;background:#f8fafc;padding:12px 8px;font-weight:800;font-size:17px;color:#111827;box-shadow:0 3px 8px #0f172a16}.template span{display:block;font-size:25px;margin-bottom:3px}.template.selected{outline:4px solid #0f172a22;transform:translateY(-1px);border-color:#0f172a}.preview{white-space:pre-wrap;background:#f8fafc;border:1px solid var(--line);border-radius:14px;padding:13px;min-height:125px;line-height:1.55}.status{margin-top:10px;font-size:13px;color:var(--muted)}
+.sendbar{position:fixed;z-index:20;left:50%;bottom:0;transform:translateX(-50%);width:min(620px,100%);padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:#fffffff2;backdrop-filter:blur(10px);border-top:1px solid var(--line)}.send{width:100%;min-height:58px;border:0;border-radius:16px;background:var(--blue);color:#fff;font-size:20px;font-weight:900;box-shadow:0 5px 18px #2563eb55}.send:disabled{background:#94a3b8;box-shadow:none}.secondary{width:100%;min-height:48px;border:1px solid var(--line);border-radius:12px;background:#fff;font-weight:700}.dangerbtn{color:#b91c1c;border-color:#fecaca;background:#fff7f7}
+.view{display:none}.view.active{display:block}.settings-head{display:flex;gap:8px;margin-bottom:12px}.settings-head button{flex:1}.formgrid{display:grid;gap:11px}label{font-size:13px;font-weight:700}input,textarea,select{width:100%;margin-top:5px;border:1px solid #94a3b8;border-radius:11px;padding:12px;background:#fff;font-size:16px}textarea{min-height:130px;resize:vertical}.hint{font-size:12px;color:var(--muted);line-height:1.5}.row{display:flex;gap:8px}.row>*{flex:1}.listitem{border:1px solid var(--line);border-radius:14px;padding:11px;margin-bottom:9px}.listitem .top{display:flex;align-items:center;gap:9px}.swatch{width:22px;height:22px;border-radius:7px;border:1px solid #0002;flex:0 0 auto}.grow{flex:1}.listitem .actions{display:flex;gap:6px;margin-top:9px}.smallbtn{min-height:40px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:7px 11px;font-weight:700}.save{background:#0f766e;color:#fff;border:0}.tabs{display:flex;gap:7px;overflow:auto;padding-bottom:8px}.tab{white-space:nowrap;border:1px solid var(--line);background:#fff;border-radius:999px;padding:9px 13px;font-weight:700}.tab.active{background:var(--navy);color:#fff}.history-item{padding:10px 0;border-bottom:1px solid #e2e8f0}.history-item small{color:var(--muted)}.notice{border-left:5px solid var(--warn);background:#fff7ed;padding:10px 12px;border-radius:9px;font-size:13px;line-height:1.5}.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);background:#111827;color:#fff;padding:11px 16px;border-radius:999px;opacity:0;pointer-events:none;transition:.2s;z-index:50;white-space:nowrap}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(max-width:380px){.cards{grid-template-columns:1fr}.meta{grid-template-columns:1fr}.template{min-height:76px}.row{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div><h1>監督者呼出し</h1><div class="sub">SMS起動方式・完全オフライン試作版</div></div><button class="iconbtn" id="settingsBtn" aria-label="設定">⚙</button></header>
+<main>
+<section id="homeView" class="view active">
+  <div class="panel meta"><div><small>ライン／場所</small><b id="lineDisplay">未設定</b></div><div><small>SMS送信先</small><b id="recipientDisplay">未設定</b></div></div>
+  <div class="panel"><h2>1. トラブル内容を選択</h2><div class="cards" id="templateCards"></div></div>
+  <div class="panel"><h2>送信内容プレビュー</h2><div class="preview" id="preview">定型文を選択してください。</div><div class="status" id="sendStatus">送信先と定型文は設定画面で変更できます。</div></div>
+  <div class="panel"><h2>呼出し履歴</h2><div id="historyList"></div><button class="secondary" id="clearHistoryBtn">履歴を消去</button></div>
+</section>
+
+<section id="settingsView" class="view">
+  <div class="settings-head"><button class="secondary" id="backBtn">← 呼出し画面</button><button class="secondary save" id="saveAllBtn">設定を保存</button></div>
+  <div class="tabs"><button class="tab active" data-tab="basic">基本設定</button><button class="tab" data-tab="templates">定型文</button><button class="tab" data-tab="data">データ管理</button></div>
+
+  <div id="basicTab" class="tabpane">
+    <div class="panel formgrid"><h2>基本設定</h2>
+      <label>ライン／場所<input id="lineInput" placeholder="例：第1組立ライン"></label>
+      <label>呼出者名（任意）<input id="operatorInput" placeholder="例：A班 3号機担当"></label>
+      <label>送信先名称<input id="recipientNameInput" placeholder="例：班長"></label>
+      <label>送信先電話番号<input id="recipientPhoneInput" inputmode="tel" placeholder="例：09012345678"></label>
+      <div class="hint">電話番号は数字、+、-、空白を入力できます。SMS起動時に記号を整理します。</div>
+    </div>
+    <div class="notice">このHTMLはSMSアプリへ宛先と本文を渡します。実際の送信確定はSMSアプリ側で行います。端末やSMSアプリにより本文の事前入力動作が異なる場合があります。</div>
+  </div>
+
+  <div id="templatesTab" class="tabpane" hidden>
+    <div class="panel"><h2>定型文一覧</h2><div id="templateList"></div><button class="secondary" id="addTemplateBtn">＋ 定型文を追加</button></div>
+    <div class="panel formgrid" id="editorPanel" hidden><h2 id="editorTitle">定型文を編集</h2>
+      <input type="hidden" id="templateIdInput">
+      <label>ボタン名<input id="templateLabelInput" maxlength="18"></label>
+      <div class="row"><label>アイコン<input id="templateIconInput" maxlength="4" placeholder="例：🔴"></label><label>ボタン色<input id="templateColorInput" type="color"></label></div>
+      <label>メッセージ本文<textarea id="templateBodyInput"></textarea></label>
+      <div class="hint">差し込み語：{ライン名}、{呼出者}、{送信先名}、{日時}、{日付}、{時刻}</div>
+      <div class="row"><button class="secondary save" id="saveTemplateBtn">定型文を保存</button><button class="secondary dangerbtn" id="deleteTemplateBtn">削除</button></div>
+    </div>
+  </div>
+
+  <div id="dataTab" class="tabpane" hidden>
+    <div class="panel formgrid"><h2>設定データ管理</h2>
+      <button class="secondary" id="exportBtn">設定をJSONで書き出す</button>
+      <label class="secondary" style="display:flex;align-items:center;justify-content:center;cursor:pointer">設定JSONを読み込む<input id="importInput" type="file" accept="application/json,.json" hidden></label>
+      <button class="secondary dangerbtn" id="resetBtn">初期設定に戻す</button>
+      <div class="hint">ブラウザーのデータを消去すると設定も消える場合があります。運用開始前に設定JSONを保存してください。</div>
+    </div>
+  </div>
+</section>
+</main>
+<div class="sendbar" id="sendBar"><button class="send" id="sendBtn" disabled>2. SMSアプリを開く</button></div>
+<div class="toast" id="toast"></div>
+</div>
+<script>
+(()=>{
+'use strict';
+const STORE='supervisorCallSmsConfigV1', HIST='supervisorCallSmsHistoryV1';
+const defaults={line:'第1組立ライン',operator:'',recipientName:'班長',recipientPhone:'',templates:[
+{id:'quality',label:'品質異常',icon:'🔴',color:'#fee2e2',body:'【品質異常】\n{ライン名}で品質異常が発生しました。\n現場確認をお願いします。\n発生：{日時}\n呼出者：{呼出者}'},
+{id:'machine',label:'設備停止',icon:'🟠',color:'#ffedd5',body:'【設備停止】\n{ライン名}で設備が停止しました。\n現場確認と応援をお願いします。\n発生：{日時}\n呼出者：{呼出者}'},
+{id:'material',label:'材料不足',icon:'🟡',color:'#fef9c3',body:'【材料不足】\n{ライン名}で材料不足が発生しています。\n供給確認をお願いします。\n発生：{日時}\n呼出者：{呼出者}'},
+{id:'decision',label:'作業判断',icon:'🔵',color:'#dbeafe',body:'【判断依頼】\n{ライン名}で作業判断が必要です。\n現場確認をお願いします。\n発生：{日時}\n呼出者：{呼出者}'},
+{id:'safety',label:'安全異常',icon:'⚫',color:'#e5e7eb',body:'【安全異常】\n{ライン名}で安全上の異常を確認しました。\n至急、現場確認をお願いします。\n発生：{日時}\n呼出者：{呼出者}'}]};
+let cfg=load(STORE,structuredClone(defaults)), selectedId=null, editingId=null;
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+function load(k,f){try{return JSON.parse(localStorage.getItem(k))||f}catch{return f}}
+function save(){localStorage.setItem(STORE,JSON.stringify(cfg))}
+function esc(s=''){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function nowParts(){const d=new Date(),p=n=>String(n).padStart(2,'0');return{date:`${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())}`,time:`${p(d.getHours())}:${p(d.getMinutes())}`}}
+function compile(body){const n=nowParts();return body.replaceAll('{ライン名}',cfg.line||'未設定').replaceAll('{呼出者}',cfg.operator||'未設定').replaceAll('{送信先名}',cfg.recipientName||'監督者').replaceAll('{日時}',`${n.date} ${n.time}`).replaceAll('{日付}',n.date).replaceAll('{時刻}',n.time)}
+function normalizePhone(v){return (v||'').trim().replace(/[\s()-]/g,'')}
+function toast(msg){const e=$('#toast');e.textContent=msg;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),1800)}
+function renderHome(){
+ $('#lineDisplay').textContent=cfg.line||'未設定'; $('#recipientDisplay').textContent=`${cfg.recipientName||'未設定'}${cfg.recipientPhone?'':''}`;
+ $('#templateCards').innerHTML=cfg.templates.map(t=>`<button class="template ${selectedId===t.id?'selected':''}" data-id="${esc(t.id)}" style="background:${esc(t.color)}"><span>${esc(t.icon)}</span>${esc(t.label)}</button>`).join('');
+ $$('.template').forEach(b=>b.onclick=()=>{selectedId=b.dataset.id;renderHome()});
+ const t=cfg.templates.find(x=>x.id===selectedId); $('#preview').textContent=t?compile(t.body):'定型文を選択してください。';
+ const ready=!!t&&!!normalizePhone(cfg.recipientPhone); $('#sendBtn').disabled=!ready;
+ $('#sendStatus').textContent=!cfg.recipientPhone?'送信先電話番号が未設定です。':(!t?'トラブル内容を選択してください。':`${cfg.recipientName||'送信先'}へSMSを準備します。`);
+ renderHistory();
+}
+function renderHistory(){const h=load(HIST,[]),e=$('#historyList');e.innerHTML=h.length?h.slice(0,10).map(x=>`<div class="history-item"><b>${esc(x.label)}</b> → ${esc(x.recipient)}<br><small>${esc(x.at)}</small></div>`).join(''):'<div class="hint">履歴はまだありません。</div>';}
+function renderSettings(){
+ $('#lineInput').value=cfg.line||'';$('#operatorInput').value=cfg.operator||'';$('#recipientNameInput').value=cfg.recipientName||'';$('#recipientPhoneInput').value=cfg.recipientPhone||'';
+ $('#templateList').innerHTML=cfg.templates.map((t,i)=>`<div class="listitem"><div class="top"><span class="swatch" style="background:${esc(t.color)}"></span><b class="grow">${esc(t.icon)} ${esc(t.label)}</b><button class="smallbtn editTemplate" data-id="${esc(t.id)}">編集</button></div><div class="actions"><button class="smallbtn upTemplate" data-id="${esc(t.id)}" ${i===0?'disabled':''}>↑</button><button class="smallbtn downTemplate" data-id="${esc(t.id)}" ${i===cfg.templates.length-1?'disabled':''}>↓</button></div></div>`).join('');
+ $$('.editTemplate').forEach(b=>b.onclick=()=>openEditor(b.dataset.id));$$('.upTemplate').forEach(b=>b.onclick=()=>moveTemplate(b.dataset.id,-1));$$('.downTemplate').forEach(b=>b.onclick=()=>moveTemplate(b.dataset.id,1));
+}
+function collectBasic(){cfg.line=$('#lineInput').value.trim();cfg.operator=$('#operatorInput').value.trim();cfg.recipientName=$('#recipientNameInput').value.trim();cfg.recipientPhone=$('#recipientPhoneInput').value.trim()}
+function openEditor(id){editingId=id;const t=cfg.templates.find(x=>x.id===id);$('#editorPanel').hidden=false;$('#templateIdInput').value=t.id;$('#templateLabelInput').value=t.label;$('#templateIconInput').value=t.icon;$('#templateColorInput').value=t.color;$('#templateBodyInput').value=t.body;$('#editorTitle').textContent='定型文を編集';$('#deleteTemplateBtn').hidden=false;$('#editorPanel').scrollIntoView({behavior:'smooth'})}
+function newEditor(){editingId=null;$('#editorPanel').hidden=false;$('#templateIdInput').value='';$('#templateLabelInput').value='';$('#templateIconInput').value='🔔';$('#templateColorInput').value='#e2e8f0';$('#templateBodyInput').value='【連絡】\n{ライン名}で確認が必要です。\n現場確認をお願いします。\n発生：{日時}\n呼出者：{呼出者}';$('#editorTitle').textContent='定型文を追加';$('#deleteTemplateBtn').hidden=true;$('#editorPanel').scrollIntoView({behavior:'smooth'})}
+function moveTemplate(id,delta){const i=cfg.templates.findIndex(x=>x.id===id),j=i+delta;if(j<0||j>=cfg.templates.length)return;[cfg.templates[i],cfg.templates[j]]=[cfg.templates[j],cfg.templates[i]];save();renderSettings();renderHome()}
+function showView(name){$('#homeView').classList.toggle('active',name==='home');$('#settingsView').classList.toggle('active',name==='settings');$('#sendBar').style.display=name==='home'?'block':'none';window.scrollTo(0,0);if(name==='settings')renderSettings();else renderHome()}
+function showTab(name){$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));$('#basicTab').hidden=name!=='basic';$('#templatesTab').hidden=name!=='templates';$('#dataTab').hidden=name!=='data';}
+function launchSms(){const t=cfg.templates.find(x=>x.id===selectedId),phone=normalizePhone(cfg.recipientPhone);if(!t||!phone)return;const body=compile(t.body);const isiOS=/iPad|iPhone|iPod/.test(navigator.userAgent);const uri=`sms:${phone}${isiOS?'&':'?'}body=${encodeURIComponent(body)}`;const h=load(HIST,[]);h.unshift({label:t.label,recipient:cfg.recipientName||phone,at:new Date().toLocaleString('ja-JP')});localStorage.setItem(HIST,JSON.stringify(h.slice(0,50)));renderHistory();location.href=uri;}
+$('#settingsBtn').onclick=()=>showView('settings');$('#backBtn').onclick=()=>{collectBasic();save();showView('home')};$('#saveAllBtn').onclick=()=>{collectBasic();save();renderSettings();toast('設定を保存しました')};
+$$('.tab').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));$('#addTemplateBtn').onclick=newEditor;
+$('#saveTemplateBtn').onclick=()=>{const label=$('#templateLabelInput').value.trim(),body=$('#templateBodyInput').value.trim();if(!label||!body){toast('ボタン名と本文を入力してください');return}if(editingId){Object.assign(cfg.templates.find(x=>x.id===editingId),{label,icon:$('#templateIconInput').value||'🔔',color:$('#templateColorInput').value,body})}else{cfg.templates.push({id:'t'+Date.now(),label,icon:$('#templateIconInput').value||'🔔',color:$('#templateColorInput').value,body})}save();$('#editorPanel').hidden=true;renderSettings();renderHome();toast('定型文を保存しました')};
+$('#deleteTemplateBtn').onclick=()=>{if(!editingId||!confirm('この定型文を削除しますか？'))return;cfg.templates=cfg.templates.filter(x=>x.id!==editingId);if(selectedId===editingId)selectedId=null;save();$('#editorPanel').hidden=true;renderSettings();renderHome();toast('削除しました')};
+$('#sendBtn').onclick=launchSms;$('#clearHistoryBtn').onclick=()=>{if(confirm('履歴をすべて消去しますか？')){localStorage.removeItem(HIST);renderHistory()}};
+$('#exportBtn').onclick=()=>{collectBasic();save();const blob=new Blob([JSON.stringify(cfg,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='監督者呼出し設定.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+$('#importInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const x=JSON.parse(await f.text());if(!x||!Array.isArray(x.templates))throw Error();cfg=x;save();renderSettings();renderHome();toast('設定を読み込みました')}catch{alert('設定JSONを読み込めませんでした。')}e.target.value=''};
+$('#resetBtn').onclick=()=>{if(confirm('設定と定型文を初期状態に戻しますか？')){cfg=structuredClone(defaults);selectedId=null;save();renderSettings();renderHome();toast('初期設定に戻しました')}};
+renderHome();
+})();
+</script>
+</body>
+</html>
